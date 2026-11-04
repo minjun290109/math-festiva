@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>아바타 소개팅 매칭 시스템</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<style>
+  body { font-family: 'Pretendard', sans-serif; background-color: #0f172a; }
+  .glass-panel { background: rgba(255,255,255,0.95); backdrop-filter: blur(16px); }
+  .slider-thumb::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #4f46e5; cursor: pointer; }
+</style>
+</head>
+<body class="min-h-screen text-slate-800 flex items-center justify-center p-4 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900 via-slate-900 to-black">
+
+<div class="w-full max-w-xl glass-panel rounded-3xl shadow-2xl overflow-hidden border border-white/20 relative">
+  <!-- 헤더 -->
+  <div class="bg-indigo-600/90 p-6 text-white text-center relative border-b border-indigo-500/30">
+    <h1 class="text-2xl font-black tracking-tight flex items-center justify-center gap-2"><span>🎭</span> 아바타 소개팅 매칭 시스템</h1>
+    <p class="text-indigo-200 text-xs mt-1 font-medium">수학적 모델링 동아리 축제 공식 매칭 솔루션</p>
+    <button onclick="openAdminAuth()" class="absolute top-5 right-5 text-indigo-200 hover:text-white p-2 rounded-full hover:bg-indigo-500/30 transition text-xl" title="관리자 설정">⚙️</button>
+    <div id="room-badge" class="hidden inline-flex items-center gap-1 mt-3 bg-indigo-950/60 border border-indigo-400/30 text-indigo-100 text-xs px-3 py-1 rounded-full font-mono">
+      <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+      <span>ROOM:</span> <span id="current-room-id" class="font-bold"></span>
+      <span id="role-badge" class="ml-2 text-amber-300"></span>
+    </div>
+  </div>
+
+  <div class="p-6 md:p-8">
+
+    <!-- [1] 방 입장 -->
+    <div id="screen-room" class="space-y-6">
+      <div class="text-center space-y-1">
+        <h2 class="text-xl font-bold text-slate-900">소개팅 방 입장하기</h2>
+        <p class="text-xs text-slate-500">참여하실 역할을 선택하고 4자리 방 번호를 입력하세요.</p>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div id="card-participant" onclick="selectRoleCard('participant')" class="p-5 border-2 border-indigo-600 bg-indigo-50/50 rounded-2xl cursor-pointer text-center hover:shadow-md">
+          <div class="text-3xl mb-2">👩‍❤️‍👨</div>
+          <div class="font-bold text-slate-900 text-sm">참가자</div>
+          <div class="text-[11px] text-slate-500 mt-1">소개팅 주인공 (A/B)</div>
+        </div>
+        <div id="card-spectator" onclick="selectRoleCard('spectator')" class="p-5 border-2 border-slate-200 bg-white rounded-2xl cursor-pointer text-center hover:shadow-md">
+          <div class="text-3xl mb-2">👀</div>
+          <div class="font-bold text-slate-900 text-sm">관전자</div>
+          <div class="text-[11px] text-slate-500 mt-1">실시간 소개팅 관람</div>
+        </div>
+      </div>
+      <div id="participant-sub-selector" class="bg-indigo-50/80 p-4 rounded-xl border border-indigo-100 flex items-center justify-between">
+        <span class="text-xs font-bold text-indigo-900">참가자 지정:</span>
+        <div class="flex gap-2">
+          <button type="button" id="sub-role-A-btn" onclick="setSubRole('A')" class="px-4 py-2 rounded-lg text-xs font-bold bg-indigo-600 text-white shadow">참가자 A</button>
+          <button type="button" id="sub-role-B-btn" onclick="setSubRole('B')" class="px-4 py-2 rounded-lg text-xs font-bold bg-slate-200 text-slate-700">참가자 B</button>
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">방 비밀번호 (4자리 숫자)</label>
+        <input type="password" inputmode="numeric" id="room-pass-input" maxlength="4" placeholder="예: 1234" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none text-center tracking-widest text-lg font-bold">
+        <p id="room-error-msg" class="text-xs font-bold text-red-500 text-center mt-2 hidden"></p>
+      </div>
+      <button onclick="enterRoom()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg transition">방 입장하기 ➡️</button>
+    </div>
+
+    <!-- [2] 사전 설문 -->
+    <div id="screen-pre-survey" class="space-y-6 hidden">
+      <div class="text-center space-y-1">
+        <h2 class="text-xl font-bold text-slate-900">Step 1 사전 중요도 설문</h2>
+        <p class="text-xs text-slate-500">소개팅에서 중요하게 여기는 6가지 요소에 총 <b class="text-indigo-600">100점</b>을 배분하세요.</p>
+      </div>
+      <div class="space-y-4 bg-slate-50 p-5 rounded-2xl border border-slate-200/80 max-h-[340px] overflow-y-auto" id="factor-inputs-container"></div>
+      <div class="bg-indigo-50 p-4 rounded-xl flex justify-between items-center border border-indigo-100">
+        <span class="text-xs font-bold text-slate-700">배분 총점:</span>
+        <span class="text-xl font-black"><span id="current-sum" class="text-indigo-600">0</span> / 100점</span>
+      </div>
+      <p id="sum-error" class="text-xs font-bold text-red-500 text-center h-4"></p>
+      <button id="submit-pre-btn" onclick="submitPreSurvey()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed">설문 제출하기</button>
+    </div>
+
+    <!-- [3] 대기실 (관리자 진행 대기) -->
+    <div id="screen-waiting" class="space-y-6 text-center py-10 hidden">
+      <div class="relative w-20 h-20 mx-auto">
+        <div class="absolute inset-0 rounded-full border-4 border-indigo-200 animate-ping"></div>
+        <div class="relative rounded-full border-4 border-indigo-600 h-full w-full flex items-center justify-center text-2xl">⏳</div>
+      </div>
+      <div class="space-y-1">
+        <h2 class="text-xl font-bold text-slate-900" id="waiting-title">대기 중</h2>
+        <p class="text-xs text-slate-500" id="waiting-desc"></p>
+      </div>
+    </div>
+
+    <!-- [4] 타이머 (관리자가 시작/종료) -->
+    <div id="screen-timer" class="space-y-6 text-center hidden">
+      <div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-100">
+        <span class="text-indigo-600 font-bold text-[10px] tracking-widest uppercase bg-indigo-100 px-2 py-0.5 rounded-full">Live Blind Date</span>
+        <h2 class="text-xl font-extrabold text-slate-900 mt-2">🎬 아바타 소개팅 진행 중</h2>
+        <p class="text-xs text-slate-500 mt-1">대화에 집중해 상대방에 대한 기억을 쌓아보세요!</p>
+      </div>
+      <div class="py-8 bg-slate-900 text-white rounded-3xl shadow-inner border border-slate-800">
+        <div class="text-6xl font-black tracking-widest font-mono text-amber-400" id="timer-display">15:00</div>
+        <p class="text-[11px] text-slate-400 mt-2">남은 대화 시간 (관리자가 다음 단계로 넘기면 사후 평가가 열립니다)</p>
+      </div>
+    </div>
+
+    <!-- [5] 사후 평가 -->
+    <div id="screen-post-survey" class="space-y-6 hidden">
+      <div class="text-center space-y-1">
+        <h2 class="text-xl font-bold text-slate-900">Step 3 사후 평가 및 기억 퀴즈</h2>
+        <p class="text-xs text-slate-500">소개팅 내용을 바탕으로 평가를 작성해 주세요.</p>
+      </div>
+      <div class="space-y-4 bg-slate-50 p-5 rounded-2xl border border-slate-200 max-h-[360px] overflow-y-auto" id="post-survey-content"></div>
+      <button onclick="submitPostSurvey()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg transition">평가 제출하기</button>
+    </div>
+
+    <!-- [6] 결과 -->
+    <div id="screen-result" class="space-y-6 text-center hidden">
+      <div class="py-4 space-y-2">
+        <span class="bg-pink-100 text-pink-600 text-xs font-bold px-3 py-1 rounded-full uppercase">Final Matching Result</span>
+        <h2 class="text-2xl font-black text-slate-900 mt-2">두 사람의 최종 매칭 확률</h2>
+        <div class="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-pink-600 to-rose-600 my-4 tracking-tight" id="final-probability">0.0%</div>
+        <div class="inline-block bg-indigo-50 border border-indigo-100 text-indigo-700 px-5 py-2 rounded-2xl font-bold text-sm" id="final-comment">분석 중...</div>
+      </div>
+      <button onclick="location.reload()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3.5 rounded-xl text-xs transition">처음 화면으로 돌아가기</button>
+    </div>
+
+    <!-- [ADMIN] 관리자 컨트롤 화면 -->
+    <div id="screen-admin" class="space-y-5 hidden">
+      <div class="text-center space-y-1">
+        <h2 class="text-xl font-bold text-slate-900">🛡️ 관리자 컨트롤 센터</h2>
+        <p class="text-xs text-slate-500">관리자가 버튼을 눌러야만 모든 참가자의 화면이 다음 단계로 넘어갑니다.</p>
+      </div>
+      <div class="bg-slate-900 text-slate-200 rounded-2xl p-5 text-xs space-y-2 font-mono">
+        <div>현재 단계: <b id="adm-phase" class="text-amber-400"></b></div>
+        <div>참가자 A: <span id="adm-A"></span></div>
+        <div>참가자 B: <span id="adm-B"></span></div>
+        <div>관전자: <span id="adm-spec"></span></div>
+      </div>
+      <div class="bg-slate-900 text-slate-300 p-5 rounded-2xl text-left text-xs space-y-2 font-mono">
+        <div class="text-amber-400 font-bold border-b border-slate-700 pb-1">📐 수학적 모델링 산출 내역 (관리자 전용 · 현재 입력값 기준 실시간)</div>
+        <div id="adm-breakdown" class="space-y-1 text-[11px] text-slate-400"></div>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <button onclick="adminPrev()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 rounded-xl text-xs">⬅️ 이전 단계</button>
+        <button id="adm-next-btn" onclick="adminNext()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl text-xs shadow">다음 단계 ➡️</button>
+        <button onclick="adminReset()" class="bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold py-3 rounded-xl text-xs">🔄 방 초기화</button>
+        <button onclick="adminDelete()" class="bg-red-100 hover:bg-red-200 text-red-700 font-bold py-3 rounded-xl text-xs">🗑️ 방 삭제</button>
+      </div>
+      <button onclick="adminLeave()" class="w-full text-xs text-slate-500 underline">관리 화면 나가기</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- 관리자 모달 -->
+<div id="admin-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+  <div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl space-y-5">
+    <div class="flex justify-between items-center border-b pb-3">
+      <h3 class="font-bold text-slate-900 text-base">🛡️ 관리자 인증 모드</h3>
+      <button onclick="closeAdminModal()" class="text-slate-400 hover:text-slate-600 font-bold">✕</button>
+    </div>
+    <div id="admin-auth-step" class="space-y-3">
+      <p class="text-xs text-slate-500">관리자 비밀번호 4자리를 입력하세요.</p>
+      <input type="password" inputmode="numeric" id="admin-pin-input" maxlength="4" placeholder="PIN 입력" class="w-full px-4 py-3 border rounded-xl text-center text-xl font-bold tracking-widest">
+      <p id="admin-pin-error" class="text-xs font-bold text-red-500 text-center hidden">⚠️ 비밀번호가 일치하지 않습니다.</p>
+      <button onclick="verifyAdminPin()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl text-xs shadow">인증 및 접속</button>
+    </div>
+    <div id="admin-control-step" class="space-y-4 hidden">
+      <div class="bg-amber-50 border border-amber-200 p-3 rounded-xl text-xs text-amber-900 font-medium">관리자 권한으로 로그인되었습니다.</div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">방 비밀번호 (4자리 숫자)</label>
+        <input type="text" inputmode="numeric" id="admin-create-room-id" maxlength="4" value="1234" class="w-full px-3 py-2 border rounded-lg text-center font-bold">
+      </div>
+      <button onclick="createRoomByAdmin()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl text-xs shadow">신규 소개팅 방 생성 & 관리</button>
+      <button onclick="manageExistingRoom()" class="w-full bg-slate-700 hover:bg-slate-800 text-white font-bold py-3 rounded-xl text-xs shadow">기존 방 관리 화면 열기</button>
+      <hr class="border-slate-100">
+      <button onclick="runAdminQuickDemo()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-xs shadow">⚡ 샘플 데이터로 결과 화면 미리보기 (로컬)</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+ * 1) Firebase 설정 — 본인 프로젝트 값으로 교체하세요.
+ *    Firebase 콘솔 > Realtime Database 생성 후 databaseURL 복사
+ *    (규칙은 행사 기간 동안 ".read": true, ".write": true 로 설정)
+ * ============================================================ */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBdNtjzj5MVY0KGRAf8nOQq_dErbW0EPBc",
+  authDomain: "math-208e1.firebaseapp.com",
+  databaseURL: "https://math-208e1-default-rtdb.firebaseio.com",
+  projectId: "math-208e1",
+  storageBucket: "math-208e1.firebasestorage.app",
+  messagingSenderId: "447013339177",
+  appId: "1:447013339177:web:ec8546d72bdf2deb26dc38"
+};
+const ADMIN_PIN = '0109';
+const TALK_SECONDS = 900;         // 15분
+
+const factors = [
+  "외모 (시각적 매력 및 아바타 비주얼)",
+  "목소리 (음색, 발성 및 청각적 매력)",
+  "말투 (화법, 어조 및 대화 전달 방식)",
+  "성격 (태도, 성향 및 인성적 매력)",
+  "지능 (센스, 지적 수준 및 재치)",
+  "관심사 (취향, 흥미 및 공감대 형성)"
+];
+const PHASES = ['lobby', 'pre', 'timer', 'post', 'result'];
+const PHASE_LABEL = { lobby: '① 로비(입장 대기)', pre: '② 사전 설문', timer: '③ 소개팅 타이머', post: '④ 사후 평가', result: '⑤ 결과 공개' };
+const NEXT_LABEL = { lobby: '▶ 소개팅 시작 (사전 설문 열기)', pre: '⏱ 타이머 시작', timer: '📝 사후 평가 열기', post: '📊 결과 공개', result: '(마지막 단계)' };
+
+const cid = localStorage.getItem('cid') || ('c' + Math.random().toString(36).slice(2, 10));
+localStorage.setItem('cid', cid);
+
+let db = null, serverOffset = 0;
+const state = { role: 'participant', subRole: 'A', roomId: '', isAdmin: false, data: null, ref: null, viewKey: '', timerInt: null, confettiShown: false };
+
+const $ = id => document.getElementById(id);
+const mean = a => a.reduce((x, y) => x + y, 0) / (a.length || 1);
+
+function initFirebase() {
+  if (!FIREBASE_CONFIG.apiKey) {
+    alert('Firebase 설정이 비어 있습니다. 코드 상단의 FIREBASE_CONFIG를 본인 프로젝트 값으로 교체하세요.');
+    return false;
+  }
+  if (!db) {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.database();
+    db.ref('.info/serverTimeOffset').on('value', s => serverOffset = s.val() || 0);
+  }
+  return true;
+}
+const nowSrv = () => Date.now() + serverOffset;
+
+/* ---------- 역할 선택 UI ---------- */
+function selectRoleCard(role) {
+  state.role = role;
+  const on = "p-5 border-2 border-indigo-600 bg-indigo-50/50 rounded-2xl cursor-pointer text-center hover:shadow-md";
+  const off = "p-5 border-2 border-slate-200 bg-white rounded-2xl cursor-pointer text-center hover:shadow-md";
+  $('card-participant').className = role === 'participant' ? on : off;
+  $('card-spectator').className = role === 'spectator' ? on : off;
+  $('participant-sub-selector').classList.toggle('hidden', role !== 'participant');
+}
+function setSubRole(sub) {
+  state.subRole = sub;
+  const on = "px-4 py-2 rounded-lg text-xs font-bold bg-indigo-600 text-white shadow";
+  const off = "px-4 py-2 rounded-lg text-xs font-bold bg-slate-200 text-slate-700";
+  $('sub-role-A-btn').className = sub === 'A' ? on : off;
+  $('sub-role-B-btn').className = sub === 'B' ? on : off;
+}
+const SCREENS = ['screen-room', 'screen-pre-survey', 'screen-waiting', 'screen-timer', 'screen-post-survey', 'screen-result', 'screen-admin'];
+function switchScreen(id) {
+  SCREENS.forEach(s => $(s).classList.add('hidden'));
+  $(id).classList.remove('hidden');
+}
+function showError(msg) { const e = $('room-error-msg'); e.textContent = '⚠️ ' + msg; e.classList.remove('hidden'); }
+
+/* ---------- 관리자 인증 ---------- */
+function openAdminAuth() {
+  $('admin-modal').classList.remove('hidden');
+  $('admin-auth-step').classList.remove('hidden');
+  $('admin-control-step').classList.add('hidden');
+  $('admin-pin-error').classList.add('hidden');
+  $('admin-pin-input').value = '';
+}
+function closeAdminModal() { $('admin-modal').classList.add('hidden'); }
+function verifyAdminPin() {
+  if ($('admin-pin-input').value === ADMIN_PIN) {
+    $('admin-auth-step').classList.add('hidden');
+    $('admin-control-step').classList.remove('hidden');
+  } else $('admin-pin-error').classList.remove('hidden');
+}
+
+/* ---------- 방 생성 / 관리 (관리자) ---------- */
+async function createRoomByAdmin() {
+  if (!initFirebase()) return;
+  const id = $('admin-create-room-id').value.trim();
+  if (!/^\d{4}$/.test(id)) return alert('방 비밀번호는 4자리 숫자로 입력해주세요.');
+  const snap = await db.ref('rooms/' + id).get();
+  if (snap.exists() && !confirm(`방 [${id}]이 이미 있습니다. 초기화하고 새로 만들까요?`)) return;
+  await db.ref('rooms/' + id).set({ phase: 'lobby', createdAt: firebase.database.ServerValue.TIMESTAMP });
+  closeAdminModal();
+  startAdminView(id);
+}
+async function manageExistingRoom() {
+  if (!initFirebase()) return;
+  const id = $('admin-create-room-id').value.trim();
+  const snap = await db.ref('rooms/' + id).get();
+  if (!snap.exists()) return alert('존재하지 않는 방입니다. 먼저 생성하세요.');
+  closeAdminModal();
+  startAdminView(id);
+}
+function startAdminView(id) {
+  state.isAdmin = true; state.role = 'admin';
+  attachRoom(id);
+}
+
+/* ---------- 입장 (참가자/관전자) ---------- */
+async function enterRoom() {
+  if (!initFirebase()) return;
+  const pass = $('room-pass-input').value.trim();
+  if (!/^\d{4}$/.test(pass)) return showError('4자리 숫자를 입력해주세요.');
+  const snap = await db.ref('rooms/' + pass).get();
+  if (!snap.exists()) return showError('존재하지 않는 방 번호입니다. (관리자가 방을 생성해야 합니다)');
+  $('room-error-msg').classList.add('hidden');
+
+  state.isAdmin = false;
+  if (state.role === 'participant') {
+    const res = await db.ref(`rooms/${pass}/slots/${state.subRole}`).transaction(cur => (cur === null || cur === cid) ? cid : undefined);
+    if (!res.committed) return showError(`참가자 ${state.subRole} 자리는 이미 다른 기기가 사용 중입니다.`);
+    db.ref(`rooms/${pass}/slots/${state.subRole}`).onDisconnect().cancel();
+  } else {
+    await db.ref(`rooms/${pass}/spectators/${cid}/joined`).set(true);
+  }
+  attachRoom(pass);
+}
+
+function attachRoom(id) {
+  if (state.ref) state.ref.off();
+  state.roomId = id; state.viewKey = ''; state.confettiShown = false;
+  $('room-badge').classList.remove('hidden');
+  $('current-room-id').textContent = id;
+  $('role-badge').textContent = state.isAdmin ? '[관리자]' : state.role === 'spectator' ? '[관전자]' : `[참가자 ${state.subRole}]`;
+  state.ref = db.ref('rooms/' + id);
+  state.ref.on('value', snap => {
+    state.data = snap.val();
+    if (!state.data) {
+      alert('방이 삭제되었습니다.');
+      return location.reload();
+    }
+    render();
+  });
+  clearInterval(state.timerInt);
+  state.timerInt = setInterval(tickTimer, 500);
+}
+
+/* ---------- 화면 렌더링 (서버 phase 기반) ---------- */
+function render() {
+  const d = state.data, phase = d.phase || 'lobby';
+  if (state.isAdmin) { renderAdmin(d, phase); return; }
+
+  const me = state.role === 'participant' ? (d.players && d.players[state.subRole]) : (d.spectators && d.spectators[cid]);
+  let screen, key = phase;
+
+  if (phase === 'lobby') {
+    screen = 'screen-waiting'; key += '|w';
+    setWaiting('관리자의 시작을 기다리는 중', '관리자가 "소개팅 시작"을 누르면 자동으로 다음 화면으로 이동합니다.');
+  } else if (phase === 'pre') {
+    if (state.role === 'spectator') {
+      screen = 'screen-waiting'; key += '|w';
+      setWaiting('소개팅 준비 중 (관전자)', '참가자들이 사전 설문을 작성하고 있습니다. 관리자가 타이머를 시작할 때까지 기다려주세요.');
+    } else if (me && me.pre) {
+      screen = 'screen-waiting'; key += '|w';
+      setWaiting('설문 제출 완료', '상대방과 관리자를 기다리는 중입니다. 관리자가 시작하면 자동으로 넘어갑니다.');
+    } else { screen = 'screen-pre-survey'; key += '|form'; }
+  } else if (phase === 'timer') {
+    screen = 'screen-timer';
+  } else if (phase === 'post') {
+    if (me && me.post || (state.role === 'spectator' && me && me.scores)) {
+      screen = 'screen-waiting'; key += '|w';
+      setWaiting('평가 제출 완료 ✅', '관리자가 결과를 공개할 때까지 기다려주세요.');
+    } else { screen = 'screen-post-survey'; key += '|form'; }
+  } else {
+    screen = 'screen-result';
+  }
+
+  if (key !== state.viewKey) {
+    state.viewKey = key;
+    if (screen === 'screen-pre-survey') buildPreSurveyInputs();
+    if (screen === 'screen-post-survey') buildPostSurveyInputs();
+    switchScreen(screen);
+    if (screen === 'screen-timer') tickTimer();
+  }
+  if (screen === 'screen-result') showResult(computeResult(d));
+}
+function setWaiting(t, desc) { $('waiting-title').textContent = t; $('waiting-desc').textContent = desc; }
+
+/* ---------- 관리자 화면 ---------- */
+function renderAdmin(d, phase) {
+  if (state.viewKey !== 'admin') { state.viewKey = 'admin'; switchScreen('screen-admin'); }
+  $('adm-phase').textContent = PHASE_LABEL[phase];
+  const p = d.players || {}, specs = d.spectators || {};
+  const stat = k => {
+    const joined = d.slots && d.slots[k];
+    const pre = p[k] && p[k].pre ? '설문✅' : '설문⬜';
+    const post = p[k] && p[k].post ? '평가✅' : '평가⬜';
+    return joined ? `입장됨 · ${pre} · ${post}` : '미입장';
+  };
+  $('adm-A').textContent = stat('A');
+  $('adm-B').textContent = stat('B');
+  const ids = Object.keys(specs);
+  $('adm-spec').textContent = `${ids.length}명 입장 · 평가 제출 ${ids.filter(i => specs[i].scores).length}명`;
+  const btn = $('adm-next-btn');
+  btn.textContent = NEXT_LABEL[phase];
+  btn.disabled = phase === 'result';
+  btn.classList.toggle('opacity-50', phase === 'result');
+  const r = computeResult(d);
+  $('adm-phase').textContent += ` → 현재 계산값 ${r.finalP.toFixed(1)}%`;
+  $('adm-breakdown').innerHTML = breakdownHTML(r);
+}
+function adminNext() {
+  const d = state.data, phase = d.phase || 'lobby', i = PHASES.indexOf(phase);
+  if (i >= PHASES.length - 1) return;
+  const next = PHASES[i + 1], upd = { phase: next };
+  const p = d.players || {};
+  if (phase === 'pre' && !(p.A && p.A.pre && p.B && p.B.pre)) {
+    if (!confirm('아직 설문을 제출하지 않은 참가자가 있습니다. 그래도 타이머를 시작할까요? (미제출자는 기본값 사용)')) return;
+  }
+  if (phase === 'post' && !(p.A && p.A.post && p.B && p.B.post)) {
+    if (!confirm('아직 평가를 제출하지 않은 참가자가 있습니다. 그래도 결과를 공개할까요? (미제출자는 기본값 사용)')) return;
+  }
+  if (next === 'timer') upd.timerEnd = nowSrv() + TALK_SECONDS * 1000;
+  state.ref.update(upd);
+}
+function adminPrev() {
+  const phase = state.data.phase || 'lobby', i = PHASES.indexOf(phase);
+  if (i > 0) state.ref.update({ phase: PHASES[i - 1] });
+}
+function adminReset() {
+  if (!confirm('모든 설문/평가 데이터를 지우고 로비로 되돌릴까요?')) return;
+  state.ref.update({ phase: 'lobby', players: null, spectators: null, slots: null, timerEnd: null });
+}
+function adminDelete() {
+  if (!confirm('방을 삭제하면 모든 접속자가 쫓겨납니다. 삭제할까요?')) return;
+  state.ref.remove();
+}
+function adminLeave() { location.reload(); }
+
+/* ---------- 사전 설문 ---------- */
+function buildPreSurveyInputs() {
+  const c = $('factor-inputs-container');
+  c.innerHTML = factors.map((f, i) => `
+    <div>
+      <div class="flex justify-between items-center text-xs font-semibold text-slate-700 mb-1 gap-2">
+        <span>${f}</span>
+        <span class="flex items-center gap-1">
+          <button type="button" onclick="stepW(${i},-5)" class="w-7 h-7 rounded-lg bg-slate-200 hover:bg-slate-300 font-bold">−</button>
+          <input type="number" inputmode="numeric" min="0" max="100" value="0" data-index="${i}" id="num-${i}" oninput="onNum(${i})" class="w-14 px-1 py-1 border rounded-lg text-center font-bold text-indigo-600 weight-num">
+          <button type="button" onclick="stepW(${i},5)" class="w-7 h-7 rounded-lg bg-slate-200 hover:bg-slate-300 font-bold">+</button>
+          <span class="text-slate-400">점</span>
+        </span>
+      </div>
+      <input type="range" min="0" max="100" value="0" class="w-full accent-indigo-600 slider-thumb weight-slider" data-index="${i}" id="rng-${i}" oninput="onRange(${i})">
+    </div>`).join('') + `<button type="button" onclick="fillRemain()" class="w-full text-xs font-bold text-indigo-700 bg-indigo-100 hover:bg-indigo-200 rounded-lg py-2">남은 점수를 마지막으로 만진 항목에 채우기</button>`;
+  state.lastIdx = 5;
+  updateSum();
+}
+function setW(i, v) {
+  v = Math.min(100, Math.max(0, parseInt(v) || 0));
+  $('rng-' + i).value = v; $('num-' + i).value = v; state.lastIdx = i;
+}
+function onRange(i) { setW(i, $('rng-' + i).value); updateSum(); }
+function onNum(i) {
+  const raw = $('num-' + i).value;
+  if (raw === '') { $('rng-' + i).value = 0; updateSum(); return; }  // 지우는 중에는 간섭하지 않음
+  const v = Math.min(100, Math.max(0, parseInt(raw) || 0));
+  $('rng-' + i).value = v; state.lastIdx = i;
+  if (String(v) !== raw) $('num-' + i).value = v;
+  updateSum();
+}
+function stepW(i, d) { setW(i, (parseInt($('num-' + i).value) || 0) + d); updateSum(); }
+function fillRemain() {
+  const nums = [...document.querySelectorAll('.weight-num')].map(n => parseInt(n.value) || 0);
+  const i = state.lastIdx ?? 5, others = nums.reduce((a, b) => a + b, 0) - nums[i];
+  setW(i, 100 - others); updateSum();
+}
+function updateSum() {
+  const sum = [...document.querySelectorAll('.weight-num')].reduce((a, n) => a + (parseInt(n.value) || 0), 0);
+  const left = 100 - sum;
+  $('current-sum').textContent = sum;
+  $('current-sum').className = sum === 100 ? 'text-emerald-600' : 'text-indigo-600';
+  $('sum-error').textContent = left > 0 ? `👉 ${left}점 더 배분해주세요.` : left < 0 ? `⚠️ ${-left}점 초과했습니다. 줄여주세요.` : '✅ 100점 완료! 제출할 수 있어요.';
+  $('sum-error').className = 'text-xs font-bold text-center h-4 ' + (left === 0 ? 'text-emerald-600' : 'text-red-500');
+  $('submit-pre-btn').disabled = sum !== 100;
+}
+function submitPreSurvey() {
+  const w = [...document.querySelectorAll('.weight-num')].map(n => parseInt(n.value) || 0);
+  if (w.reduce((a, b) => a + b, 0) !== 100) return;
+  state.ref.child(`players/${state.subRole}/pre`).set(w);
+}
+
+/* ---------- 타이머 ---------- */
+function tickTimer() {
+  const d = state.data;
+  if (!d || d.phase !== 'timer' || !d.timerEnd) return;
+  const left = Math.max(0, Math.round((d.timerEnd - nowSrv()) / 1000));
+  $('timer-display').textContent = `${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}`;
+}
+
+/* ---------- 사후 평가 ---------- */
+function buildPostSurveyInputs() {
+  const c = $('post-survey-content');
+  let html = '';
+  if (state.role === 'spectator') {
+    html += `<div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 mb-3 font-semibold">👀 관전자 모드: 참가자 A와 B 모두를 평가합니다.</div>`;
+    ['A', 'B'].forEach(p => {
+      html += `<h4 class="font-bold text-slate-900 text-xs mt-3 mb-2">⭐ 참가자 ${p} 평가 (1~10점)</h4>`;
+      factors.forEach((f, i) => {
+        html += `<div class="mb-2 flex justify-between items-center text-xs"><span class="text-slate-600">${f}</span>
+          <input type="number" min="1" max="10" value="8" class="w-16 px-2 py-1 border rounded-lg text-center font-bold font-mono aud-score" data-p="${p}" data-index="${i}"></div>`;
+      });
+    });
+  } else {
+    html += `<div class="bg-indigo-50 p-4 rounded-xl mb-4">
+      <h4 class="font-bold text-indigo-900 text-xs mb-1">🧠 대본 기억력 퀴즈 (3문항)</h4>
+      <p class="text-[11px] text-indigo-600 mb-2">소개팅 대화 중 맞힌 정답 개수 선택</p>
+      <select id="quiz-input" class="w-full px-3 py-2 border rounded-lg bg-white font-bold text-xs">
+        <option value="3">3개 정답 (100% 명확히 기억)</option><option value="2">2개 정답 (대부분 기억)</option>
+        <option value="1">1개 정답 (일부 기억)</option><option value="0">0개 (기억 안 남)</option></select></div>
+      <h4 class="font-bold text-slate-900 text-xs mb-2">⭐ 상대방 요소별 평가 (1~10점)</h4>`;
+    factors.forEach((f, i) => {
+      html += `<div class="mb-2 flex justify-between items-center text-xs"><span class="text-slate-600">${f}</span>
+        <input type="number" min="1" max="10" value="8" class="w-16 px-2 py-1 border rounded-lg text-center font-bold font-mono post-eval-score" data-index="${i}"></div>`;
+    });
+  }
+  c.innerHTML = html;
+}
+const clamp = v => Math.min(10, Math.max(1, isNaN(v) ? 5 : v));
+function submitPostSurvey() {
+  if (state.role === 'spectator') {
+    const sc = { A: [], B: [] };
+    document.querySelectorAll('.aud-score').forEach(inp => { sc[inp.dataset.p][+inp.dataset.index] = clamp(parseFloat(inp.value)); });
+    state.ref.child(`spectators/${cid}/scores`).set(sc);
+  } else {
+    const scores = [...document.querySelectorAll('.post-eval-score')].map(i => clamp(parseFloat(i.value)));
+    const quiz = parseInt($('quiz-input').value) || 0;
+    state.ref.child(`players/${state.subRole}/post`).set({ scores, quiz });
+  }
+}
+
+/* ---------- 수학 모델 ----------
+ * S_mem = 5 + 5·(q/3)
+ * H_AB  = 0.7·Σ(wA·Score[A→B]) + 0.25·Σ(wA·Score[Spec→B]) + 0.05·S_mem,A
+ * H_BA  = 0.7·Σ(wB·Score[B→A]) + 0.25·Σ(wB·Score[Spec→A]) + 0.05·S_mem,B
+ * M     = √(H_AB · H_BA)
+ * P     = 100 / (1 + e^(-0.45(M-5.0)))
+ * (관전자 평가가 아직 없으면 Spec 항은 해당 참가자 점수로 대체)
+ */
+function computeResult(d, override) {
+  const P = override || d.players || {};
+  const specs = override ? (override.specs || {}) : (d.spectators || {});
+  const defW = [1 / 6, 1 / 6, 1 / 6, 1 / 6, 1 / 6, 1 / 6];
+  const get = (k) => {
+    const x = P[k] || {};
+    return {
+      w: x.pre ? x.pre.map(v => v / 100) : defW,
+      sc: x.post ? x.post.scores : Array(6).fill(7),
+      quiz: x.post ? x.post.quiz : 1.5
+    };
+  };
+  const A = get('A'), B = get('B');
+  const aud = Object.values(specs).filter(s => s.scores && s.scores.A && s.scores.B);
+  const count = aud.length;
+  const audAvg = k => factors.map((_, i) => mean(aud.map(s => s.scores[k][i])));
+  const specToA = count ? audAvg('A') : null, specToB = count ? audAvg('B') : null;
+  const dot = (w, sc) => w.reduce((t, wi, i) => t + wi * sc[i], 0);
+
+  const own_AB = dot(A.w, A.sc), spec_AB = dot(A.w, specToB || A.sc);
+  const own_BA = dot(B.w, B.sc), spec_BA = dot(B.w, specToA || B.sc);
+  const memA = 5 + 5 * (A.quiz / 3), memB = 5 + 5 * (B.quiz / 3);
+  const H_AB = 0.7 * own_AB + 0.25 * spec_AB + 0.05 * memA;
+  const H_BA = 0.7 * own_BA + 0.25 * spec_BA + 0.05 * memB;
+  const M = Math.sqrt(H_AB * H_BA);
+  const finalP = 100 / (1 + Math.exp(-0.45 * (M - 5.0)));
+  return { H_AB, H_BA, M, count, memA, memB, finalP, own_AB, spec_AB, own_BA, spec_BA };
+}
+function breakdownHTML(r) {
+  return `
+    <div>• 매칭 확률: <b class="text-white">${r.finalP.toFixed(1)}%</b></div>
+    <div>• H(A→B) 방향별 호감도: <b class="text-white">${r.H_AB.toFixed(2)}점</b> (기억점수 ${r.memA.toFixed(1)})</div>
+    <div>• H(B→A) 방향별 호감도: <b class="text-white">${r.H_BA.toFixed(2)}점</b> (기억점수 ${r.memB.toFixed(1)})</div>
+    <div>• 결합 기하평균 (M): <b class="text-white">${r.M.toFixed(2)}점</b></div>
+    <div>• A→B 참가자 평가 ${r.own_AB.toFixed(2)} / 관전자 평가 ${r.spec_AB.toFixed(2)}</div>
+    <div>• B→A 참가자 평가 ${r.own_BA.toFixed(2)} / 관전자 평가 ${r.spec_BA.toFixed(2)}</div>
+    <div>• 평가 제출 관전자: <b class="text-white">${r.count}명</b>${r.count ? '' : ' (없음 → 관전자 항은 참가자 점수로 대체)'}</div>
+    <div class="text-slate-500">※ 미제출 항목은 기본값으로 계산됩니다.</div>`;
+}
+function showResult(r) {
+  let comment;
+  if (r.finalP >= 80) comment = "🔥 두근두근 설레는 사이 (천생연분!)";
+  else if (r.finalP >= 60) comment = "✨ 서로 통하는 호감 사이 (매력 만점)";
+  else if (r.finalP >= 40) comment = "💬 호기심 가득한 조용한 스파크";
+  else comment = "⚡ 묘하게 끌리는 반전 케미";
+  $('final-probability').textContent = r.finalP.toFixed(1) + '%';
+  $('final-comment').textContent = comment;
+  switchScreen('screen-result');
+  if (!state.confettiShown && typeof confetti === 'function') {
+    state.confettiShown = true;
+    confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+  }
+}
+
+/* ---------- 관리자 로컬 시연 ---------- */
+function runAdminQuickDemo() {
+  closeAdminModal();
+  state.confettiShown = false;
+  const demo = {
+    A: { pre: [20, 20, 15, 15, 15, 15], post: { scores: [9, 8, 8, 9, 7, 8], quiz: 3 } },
+    B: { pre: [15, 25, 20, 10, 15, 15], post: { scores: [8, 9, 7, 8, 9, 8], quiz: 3 } }
+  };
+  const r = computeResult({}, demo);
+  alert('[관리자 전용 샘플 계산]\n매칭 확률 ' + r.finalP.toFixed(1) + '%\nH(A→B) ' + r.H_AB.toFixed(2) + ' / H(B→A) ' + r.H_BA.toFixed(2) + '\nM ' + r.M.toFixed(2));
+}
+</script>
+</body>
+</html>
