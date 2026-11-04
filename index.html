@@ -1,546 +1,578 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>아바타 소개팅 매칭 시스템</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    <style>
-        body { font-family: 'Pretendard', sans-serif; background-color: #0f172a; }
-        .glass-panel { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(16px); }
-        .slider-thumb::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #4f46e5; cursor: pointer; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>아바타 소개팅 매칭 시스템</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<style>
+  body { font-family: 'Pretendard', sans-serif; background-color: #0f172a; }
+  .glass-panel { background: rgba(255,255,255,0.95); backdrop-filter: blur(16px); }
+  .slider-thumb::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #4f46e5; cursor: pointer; }
+</style>
 </head>
 <body class="min-h-screen text-slate-800 flex items-center justify-center p-4 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900 via-slate-900 to-black">
 
-    <div class="w-full max-w-xl glass-panel rounded-3xl shadow-2xl overflow-hidden border border-white/20 transition-all duration-300 relative">
-        
-        <!-- 상단 헤더 -->
-        <div class="bg-indigo-600/90 p-6 text-white text-center relative backdrop-blur-md border-b border-indigo-500/30">
-            <h1 class="text-2xl font-black tracking-tight flex items-center justify-center gap-2">
-                <span>🎭</span> 아바타 소개팅 매칭 시스템
-            </h1>
-            <p class="text-indigo-200 text-xs mt-1 font-medium">수학적 모델링 동아리 축제 공식 매칭 솔루션</p>
-            
-            <!-- 관리자 모달 열기 버튼 (우측 상단 ⚙️) -->
-            <button onclick="openAdminAuth()" class="absolute top-5 right-5 text-indigo-200 hover:text-white p-2 rounded-full hover:bg-indigo-500/30 transition" title="관리자 설정">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-            </button>
+<div class="w-full max-w-xl glass-panel rounded-3xl shadow-2xl overflow-hidden border border-white/20 relative">
+  <!-- 헤더 -->
+  <div class="bg-indigo-600/90 p-6 text-white text-center relative border-b border-indigo-500/30">
+    <h1 class="text-2xl font-black tracking-tight flex items-center justify-center gap-2"><span>🎭</span> 아바타 소개팅 매칭 시스템</h1>
+    <p class="text-indigo-200 text-xs mt-1 font-medium">수학적 모델링 동아리 축제 공식 매칭 솔루션</p>
+    <button onclick="openAdminAuth()" class="absolute top-5 right-5 text-indigo-200 hover:text-white p-2 rounded-full hover:bg-indigo-500/30 transition text-xl" title="관리자 설정">⚙️</button>
+    <div id="room-badge" class="hidden inline-flex items-center gap-1 mt-3 bg-indigo-950/60 border border-indigo-400/30 text-indigo-100 text-xs px-3 py-1 rounded-full font-mono">
+      <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+      <span>ROOM:</span> <span id="current-room-id" class="font-bold"></span>
+      <span id="role-badge" class="ml-2 text-amber-300"></span>
+    </div>
+  </div>
 
-            <!-- 방 상태 표시 칩 -->
-            <div id="room-badge" class="hidden inline-flex items-center gap-1.5 mt-3 bg-indigo-950/60 border border-indigo-400/30 text-indigo-100 text-xs px-3 py-1 rounded-full font-mono">
-                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span>ROOM:</span> <span id="current-room-id" class="font-bold"></span>
-            </div>
+  <div class="p-6 md:p-8">
+
+    <!-- [1] 방 입장 -->
+    <div id="screen-room" class="space-y-6">
+      <div class="text-center space-y-1">
+        <h2 class="text-xl font-bold text-slate-900">소개팅 방 입장하기</h2>
+        <p class="text-xs text-slate-500">참여하실 역할을 선택하고 4자리 방 번호를 입력하세요.</p>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div id="card-participant" onclick="selectRoleCard('participant')" class="p-5 border-2 border-indigo-600 bg-indigo-50/50 rounded-2xl cursor-pointer text-center hover:shadow-md">
+          <div class="text-3xl mb-2">👩❤️👨</div>
+          <div class="font-bold text-slate-900 text-sm">참가자</div>
+          <div class="text-[11px] text-slate-500 mt-1">소개팅 주인공 (A/B)</div>
         </div>
-
-        <div class="p-6 md:p-8">
-
-            <!-- [SCREEN 1] 역할 선택 & 방 입장 -->
-            <div id="screen-room" class="space-y-6">
-                <div class="text-center space-y-1">
-                    <h2 class="text-xl font-bold text-slate-900">소개팅 방 입장하기</h2>
-                    <p class="text-xs text-slate-500">참여하실 역할을 선택하고 4자리 방 번호를 입력하세요.</p>
-                </div>
-
-                <!-- 2개 대형 역할 카드 선택 UI -->
-                <div class="grid grid-cols-2 gap-4">
-                    <div id="card-participant" onclick="selectRoleCard('participant')" class="p-5 border-2 border-indigo-600 bg-indigo-50/50 rounded-2xl cursor-pointer transition text-center hover:shadow-md">
-                        <div class="text-3xl mb-2">👩‍❤️‍👨</div>
-                        <div class="font-bold text-slate-900 text-sm">참가자</div>
-                        <div class="text-[11px] text-slate-500 mt-1">소개팅 주인공 (A/B)</div>
-                    </div>
-                    <div id="card-spectator" onclick="selectRoleCard('spectator')" class="p-5 border-2 border-slate-200 bg-white rounded-2xl cursor-pointer transition text-center hover:shadow-md">
-                        <div class="text-3xl mb-2">👀</div>
-                        <div class="font-bold text-slate-900 text-sm">관전자</div>
-                        <div class="text-[11px] text-slate-500 mt-1">실시간 소개팅 관람</div>
-                    </div>
-                </div>
-
-                <!-- 참가자 세부 선택 (A 또는 B) -->
-                <div id="participant-sub-selector" class="bg-indigo-50/80 p-4 rounded-xl border border-indigo-100 flex items-center justify-between">
-                    <span class="text-xs font-bold text-indigo-900">참가자 지정:</span>
-                    <div class="flex gap-2">
-                        <button type="button" id="sub-role-A-btn" onclick="setSubRole('A')" class="px-4 py-2 rounded-lg text-xs font-bold bg-indigo-600 text-white shadow">참가자 A</button>
-                        <button type="button" id="sub-role-B-btn" onclick="setSubRole('B')" class="px-4 py-2 rounded-lg text-xs font-bold bg-slate-200 text-slate-700">참가자 B</button>
-                    </div>
-                </div>
-
-                <!-- 방 비밀번호 입력 -->
-                <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1">방 비밀번호 (4자리 숫자)</label>
-                    <input type="password" id="room-pass-input" maxlength="4" placeholder="예: 1234" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none text-center tracking-widest text-lg font-bold">
-                    <p id="room-error-msg" class="text-xs font-bold text-red-500 text-center mt-2 hidden">⚠️ 존재하지 않는 방 번호입니다. (관리자가 방을 생성해야 합니다)</p>
-                </div>
-
-                <button onclick="enterRoom()" class="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-bold py-4 rounded-xl shadow-lg transition duration-200">방 입장하기 ➡️</button>
-            </div>
-
-            <!-- [SCREEN 2] 사전 설문 (중요도 100점 배분 - 참가자 전용) -->
-            <div id="screen-pre-survey" class="space-y-6 hidden">
-                <div class="text-center space-y-1">
-                    <h2 class="text-xl font-bold text-slate-900">Step 1. 사전 중요도 설문</h2>
-                    <p class="text-xs text-slate-500">소개팅에서 중요하게 여기는 6가지 요소에 총 <b class="text-indigo-600">100점</b>을 배분하세요.</p>
-                </div>
-
-                <div class="space-y-4 bg-slate-50 p-5 rounded-2xl border border-slate-200/80 max-h-[340px] overflow-y-auto" id="factor-inputs-container">
-                    <!-- JS 생성 -->
-                </div>
-
-                <div class="bg-indigo-50 p-4 rounded-xl flex justify-between items-center border border-indigo-100">
-                    <span class="text-xs font-bold text-slate-700">배분 총점:</span>
-                    <span class="text-xl font-black"><span id="current-sum" class="text-indigo-600">0</span> / 100점</span>
-                </div>
-                
-                <p id="sum-error" class="text-xs font-bold text-red-500 text-center h-4"></p>
-
-                <button id="submit-pre-btn" onclick="submitPreSurvey()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed">설문 제출하기</button>
-            </div>
-
-            <!-- [SCREEN 2-2] 대기실 (상대방 완료 대기) -->
-            <div id="screen-waiting" class="space-y-6 text-center py-10 hidden">
-                <div class="relative w-20 h-20 mx-auto">
-                    <div class="absolute inset-0 rounded-full border-4 border-indigo-200 animate-ping"></div>
-                    <div class="relative rounded-full border-4 border-indigo-600 h-full w-full flex items-center justify-center text-2xl">⏳</div>
-                </div>
-                <div class="space-y-1">
-                    <h2 class="text-xl font-bold text-slate-900" id="waiting-title">상대방의 설문을 기다리는 중...</h2>
-                    <p class="text-xs text-slate-500">두 참가자가 모두 설문을 제출하면 자동으로 소개팅이 시작됩니다.</p>
-                </div>
-            </div>
-
-            <!-- [SCREEN 3] 15분 소개팅 타이머 화면 -->
-            <div id="screen-timer" class="space-y-6 text-center hidden">
-                <div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-100">
-                    <span class="text-indigo-600 font-bold text-[10px] tracking-widest uppercase bg-indigo-100 px-2 py-0.5 rounded-full">Live Blind Date</span>
-                    <h2 class="text-xl font-extrabold text-slate-900 mt-2">🎬 아바타 소개팅 진행 중</h2>
-                    <p class="text-xs text-slate-500 mt-1">대화에 집중해 상대방에 대한 기억을 쌓아보세요!</p>
-                </div>
-
-                <div class="py-8 bg-slate-900 text-white rounded-3xl shadow-inner border border-slate-800">
-                    <div class="text-6xl font-black tracking-widest font-mono text-amber-400" id="timer-display">15:00</div>
-                    <p class="text-[11px] text-slate-400 mt-2">남은 대화 시간</p>
-                </div>
-
-                <div class="flex gap-3">
-                    <button onclick="skipTimer()" class="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-3 rounded-xl text-xs transition">⏩ 타이머 스킵</button>
-                    <button onclick="goToPostSurvey()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl text-xs shadow transition">사후 평가 단계로 이동 ➡️</button>
-                </div>
-            </div>
-
-            <!-- [SCREEN 4] 사후 설문 & 퀴즈 (참가자 & 관전자 동시 지원) -->
-            <div id="screen-post-survey" class="space-y-6 hidden">
-                <div class="text-center space-y-1">
-                    <h2 class="text-xl font-bold text-slate-900">Step 3. 사후 평가 및 기억 퀴즈</h2>
-                    <p class="text-xs text-slate-500" id="post-survey-desc">소개팅 내용을 바탕으로 평가를 작성해 주세요.</p>
-                </div>
-
-                <div class="space-y-4 bg-slate-50 p-5 rounded-2xl border border-slate-200 max-h-[360px] overflow-y-auto" id="post-survey-content">
-                    <!-- JS 생성 -->
-                </div>
-
-                <button onclick="submitPostSurvey()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg transition">평가 제출하고 준비하기</button>
-            </div>
-
-            <!-- [SCREEN 5] 준비완료 대기실 -->
-            <div id="screen-review" class="space-y-6 text-center hidden">
-                <div class="bg-indigo-50 border border-indigo-200 p-6 rounded-2xl space-y-2">
-                    <div class="text-3xl">✅</div>
-                    <h2 class="text-lg font-bold text-indigo-900">모든 평가가 저장되었습니다!</h2>
-                    <p class="text-xs text-indigo-700">양측 참가자가 준비 완료를 누르면 수학적 케미스트리 모델링 계산이 즉시 실행됩니다.</p>
-                </div>
-                
-                <button id="ready-btn" onclick="toggleReady()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg transition">🚀 준비 완료 (Ready)</button>
-                <div id="ready-status" class="text-xs font-semibold text-slate-400">상대방의 준비 버튼을 기다리는 중...</div>
-            </div>
-
-            <!-- [SCREEN 6] 최종 매칭 결과 화면 -->
-            <div id="screen-result" class="space-y-6 text-center hidden">
-                <div class="py-4 space-y-2">
-                    <span class="bg-pink-100 text-pink-600 text-xs font-bold px-3 py-1 rounded-full uppercase">Final Matching Result</span>
-                    <h2 class="text-2xl font-black text-slate-900 mt-2">두 사람의 최종 매칭 확률</h2>
-                    <div class="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-pink-600 to-rose-600 my-4 tracking-tight" id="final-probability">0.0%</div>
-                    <div class="inline-block bg-indigo-50 border border-indigo-100 text-indigo-700 px-5 py-2 rounded-2xl font-bold text-sm" id="final-comment">분석 중...</div>
-                </div>
-
-                <div class="bg-slate-900 text-slate-300 p-5 rounded-2xl text-left text-xs space-y-2 font-mono">
-                    <div class="text-amber-400 font-bold border-b border-slate-700 pb-1">📐 수학적 모델링 산출 내역</div>
-                    <div id="result-breakdown" class="space-y-1 text-[11px] text-slate-400">
-                        <!-- JS로 세부 수치 삽입 -->
-                    </div>
-                </div>
-
-                <button onclick="location.reload()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3.5 rounded-xl text-xs transition">처음 화면으로 돌아가기</button>
-            </div>
-
+        <div id="card-spectator" onclick="selectRoleCard('spectator')" class="p-5 border-2 border-slate-200 bg-white rounded-2xl cursor-pointer text-center hover:shadow-md">
+          <div class="text-3xl mb-2">👀</div>
+          <div class="font-bold text-slate-900 text-sm">관전자</div>
+          <div class="text-[11px] text-slate-500 mt-1">실시간 소개팅 관람</div>
         </div>
+      </div>
+      <div id="participant-sub-selector" class="bg-indigo-50/80 p-4 rounded-xl border border-indigo-100 flex items-center justify-between">
+        <span class="text-xs font-bold text-indigo-900">참가자 지정:</span>
+        <div class="flex gap-2">
+          <button type="button" id="sub-role-A-btn" onclick="setSubRole('A')" class="px-4 py-2 rounded-lg text-xs font-bold bg-indigo-600 text-white shadow">참가자 A</button>
+          <button type="button" id="sub-role-B-btn" onclick="setSubRole('B')" class="px-4 py-2 rounded-lg text-xs font-bold bg-slate-200 text-slate-700">참가자 B</button>
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">방 비밀번호 (4자리 숫자)</label>
+        <input type="password" inputmode="numeric" id="room-pass-input" maxlength="4" placeholder="예: 1234" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none text-center tracking-widest text-lg font-bold">
+        <p id="room-error-msg" class="text-xs font-bold text-red-500 text-center mt-2 hidden"></p>
+      </div>
+      <button onclick="enterRoom()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg transition">방 입장하기 ➡️</button>
     </div>
 
-    <!-- [MODAL] 관리자 인증 및 제어 모달 -->
-    <div id="admin-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl space-y-5">
-            <div class="flex justify-between items-center border-b pb-3">
-                <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">🛡️ 관리자 인증 모드</h3>
-                <button onclick="closeAdminModal()" class="text-slate-400 hover:text-slate-600 font-bold">✕</button>
-            </div>
-
-            <!-- 1단계: PIN 입력 -->
-            <div id="admin-auth-step" class="space-y-3">
-                <p class="text-xs text-slate-500">관리자 비밀번호 4자리를 입력하세요.</p>
-                <input type="password" id="admin-pin-input" maxlength="4" placeholder="PIN 입력" class="w-full px-4 py-3 border rounded-xl text-center text-xl font-bold tracking-widest focus:ring-2 focus:ring-indigo-500">
-                <p id="admin-pin-error" class="text-xs font-bold text-red-500 text-center hidden">⚠️ 비밀번호가 일치하지 않습니다.</p>
-                <button onclick="verifyAdminPin()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl text-xs shadow">인증 및 접속</button>
-            </div>
-
-            <!-- 2단계: 관리자 제어 패널 -->
-            <div id="admin-control-step" class="space-y-4 hidden">
-                <div class="bg-amber-50 border border-amber-200 p-3 rounded-xl text-xs text-amber-900 font-medium">
-                    관리자 권한으로 로그인되었습니다. 방 생성 및 전체 테스트 시연을 수행할 수 있습니다.
-                </div>
-
-                <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1">생성할 방 비밀번호 (4자리)</label>
-                    <input type="text" id="admin-create-room-id" maxlength="4" placeholder="예: 1234" value="1234" class="w-full px-3 py-2 border rounded-lg text-center font-bold">
-                </div>
-
-                <button onclick="createRoomByAdmin()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl text-xs shadow">신규 소개팅 방 생성</button>
-                <hr class="border-slate-100">
-                <button onclick="runAdminQuickDemo()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl text-xs shadow flex items-center justify-center gap-1.5">
-                    <span>⚡</span> 전체 시연 데이터 생성 및 결과 실행
-                </button>
-            </div>
-        </div>
+    <!-- [2] 사전 설문 -->
+    <div id="screen-pre-survey" class="space-y-6 hidden">
+      <div class="text-center space-y-1">
+        <h2 class="text-xl font-bold text-slate-900">Step 1 사전 중요도 설문</h2>
+        <p class="text-xs text-slate-500">소개팅에서 중요하게 여기는 6가지 요소에 총 <b class="text-indigo-600">100점</b>을 배분하세요.</p>
+      </div>
+      <div class="space-y-4 bg-slate-50 p-5 rounded-2xl border border-slate-200/80 max-h-[340px] overflow-y-auto" id="factor-inputs-container"></div>
+      <div class="bg-indigo-50 p-4 rounded-xl flex justify-between items-center border border-indigo-100">
+        <span class="text-xs font-bold text-slate-700">배분 총점:</span>
+        <span class="text-xl font-black"><span id="current-sum" class="text-indigo-600">0</span> / 100점</span>
+      </div>
+      <p id="sum-error" class="text-xs font-bold text-red-500 text-center h-4"></p>
+      <button id="submit-pre-btn" onclick="submitPreSurvey()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed">설문 제출하기</button>
     </div>
 
-    <script>
-        const factors = [
-            "아바타 센스 (지시 수행 능력)",
-            "말투 및 목소리 (전달력과 매력)",
-            "유머 감각 (분위기 리드)",
-            "가치관 및 성향 (생각의 결)",
-            "배려 및 경청 (존중하는 태도)",
-            "대화 흥미 (티키타카 호흡)"
-        ];
+    <!-- [3] 대기실 (관리자 진행 대기) -->
+    <div id="screen-waiting" class="space-y-6 text-center py-10 hidden">
+      <div class="relative w-20 h-20 mx-auto">
+        <div class="absolute inset-0 rounded-full border-4 border-indigo-200 animate-ping"></div>
+        <div class="relative rounded-full border-4 border-indigo-600 h-full w-full flex items-center justify-center text-2xl">⏳</div>
+      </div>
+      <div class="space-y-1">
+        <h2 class="text-xl font-bold text-slate-900" id="waiting-title">대기 중</h2>
+        <p class="text-xs text-slate-500" id="waiting-desc"></p>
+      </div>
+    </div>
 
-        let createdRooms = {}; // 시뮬레이션용 방 저장소
+    <!-- [4] 타이머 (관리자가 시작/종료) -->
+    <div id="screen-timer" class="space-y-6 text-center hidden">
+      <div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-100">
+        <span class="text-indigo-600 font-bold text-[10px] tracking-widest uppercase bg-indigo-100 px-2 py-0.5 rounded-full">Live Blind Date</span>
+        <h2 class="text-xl font-extrabold text-slate-900 mt-2">🎬 아바타 소개팅 진행 중</h2>
+        <p class="text-xs text-slate-500 mt-1">대화에 집중해 상대방에 대한 기억을 쌓아보세요!</p>
+      </div>
+      <div class="py-8 bg-slate-900 text-white rounded-3xl shadow-inner border border-slate-800">
+        <div class="text-6xl font-black tracking-widest font-mono text-amber-400" id="timer-display">15:00</div>
+        <p class="text-[11px] text-slate-400 mt-2">남은 대화 시간 (관리자가 다음 단계로 넘기면 사후 평가가 열립니다)</p>
+      </div>
+    </div>
 
-        let state = {
-            role: 'participant', // 'participant' | 'spectator'
-            subRole: 'A', // 'A' | 'B'
-            roomId: '',
-            weightsA: [0.20, 0.20, 0.15, 0.15, 0.15, 0.15],
-            weightsB: [0.15, 0.25, 0.20, 0.10, 0.15, 0.15],
-            scoresAtoB: [9, 8, 8, 9, 7, 8],
-            scoresBtoA: [8, 9, 7, 8, 9, 8],
-            quizA: 3,
-            quizB: 3,
-            audienceScoresA: [8, 8, 8, 8, 8, 8],
-            audienceScoresB: [8, 8, 8, 8, 8, 8],
-            audienceCount: 10,
-            timerInterval: null,
-            timeLeft: 900
-        };
+    <!-- [5] 사후 평가 -->
+    <div id="screen-post-survey" class="space-y-6 hidden">
+      <div class="text-center space-y-1">
+        <h2 class="text-xl font-bold text-slate-900">Step 3 사후 평가 및 기억 퀴즈</h2>
+        <p class="text-xs text-slate-500">소개팅 내용을 바탕으로 평가를 작성해 주세요.</p>
+      </div>
+      <div class="space-y-4 bg-slate-50 p-5 rounded-2xl border border-slate-200 max-h-[360px] overflow-y-auto" id="post-survey-content"></div>
+      <button onclick="submitPostSurvey()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg transition">평가 제출하기</button>
+    </div>
 
-        function selectRoleCard(role) {
-            state.role = role;
-            const pCard = document.getElementById('card-participant');
-            const sCard = document.getElementById('card-spectator');
-            const subSel = document.getElementById('participant-sub-selector');
+    <!-- [6] 결과 -->
+    <div id="screen-result" class="space-y-6 text-center hidden">
+      <div class="py-4 space-y-2">
+        <span class="bg-pink-100 text-pink-600 text-xs font-bold px-3 py-1 rounded-full uppercase">Final Matching Result</span>
+        <h2 class="text-2xl font-black text-slate-900 mt-2">두 사람의 최종 매칭 확률</h2>
+        <div class="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-pink-600 to-rose-600 my-4 tracking-tight" id="final-probability">0.0%</div>
+        <div class="inline-block bg-indigo-50 border border-indigo-100 text-indigo-700 px-5 py-2 rounded-2xl font-bold text-sm" id="final-comment">분석 중...</div>
+      </div>
+      <div class="bg-slate-900 text-slate-300 p-5 rounded-2xl text-left text-xs space-y-2 font-mono">
+        <div class="text-amber-400 font-bold border-b border-slate-700 pb-1">📐 수학적 모델링 산출 내역</div>
+        <div id="result-breakdown" class="space-y-1 text-[11px] text-slate-400"></div>
+      </div>
+      <button onclick="location.reload()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3.5 rounded-xl text-xs transition">처음 화면으로 돌아가기</button>
+    </div>
 
-            if(role === 'participant') {
-                pCard.className = "p-5 border-2 border-indigo-600 bg-indigo-50/50 rounded-2xl cursor-pointer transition text-center hover:shadow-md";
-                sCard.className = "p-5 border-2 border-slate-200 bg-white rounded-2xl cursor-pointer transition text-center hover:shadow-md";
-                subSel.classList.remove('hidden');
-            } else {
-                sCard.className = "p-5 border-2 border-indigo-600 bg-indigo-50/50 rounded-2xl cursor-pointer transition text-center hover:shadow-md";
-                pCard.className = "p-5 border-2 border-slate-200 bg-white rounded-2xl cursor-pointer transition text-center hover:shadow-md";
-                subSel.classList.add('hidden');
-            }
-        }
+    <!-- [ADMIN] 관리자 컨트롤 화면 -->
+    <div id="screen-admin" class="space-y-5 hidden">
+      <div class="text-center space-y-1">
+        <h2 class="text-xl font-bold text-slate-900">🛡️ 관리자 컨트롤 센터</h2>
+        <p class="text-xs text-slate-500">관리자가 버튼을 눌러야만 모든 참가자의 화면이 다음 단계로 넘어갑니다.</p>
+      </div>
+      <div class="bg-slate-900 text-slate-200 rounded-2xl p-5 text-xs space-y-2 font-mono">
+        <div>현재 단계: <b id="adm-phase" class="text-amber-400"></b></div>
+        <div>참가자 A: <span id="adm-A"></span></div>
+        <div>참가자 B: <span id="adm-B"></span></div>
+        <div>관전자: <span id="adm-spec"></span></div>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <button onclick="adminPrev()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 rounded-xl text-xs">⬅️ 이전 단계</button>
+        <button id="adm-next-btn" onclick="adminNext()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl text-xs shadow">다음 단계 ➡️</button>
+        <button onclick="adminReset()" class="bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold py-3 rounded-xl text-xs">🔄 방 초기화</button>
+        <button onclick="adminDelete()" class="bg-red-100 hover:bg-red-200 text-red-700 font-bold py-3 rounded-xl text-xs">🗑️ 방 삭제</button>
+      </div>
+      <button onclick="adminLeave()" class="w-full text-xs text-slate-500 underline">관리 화면 나가기</button>
+    </div>
 
-        function setSubRole(sub) {
-            state.subRole = sub;
-            document.getElementById('sub-role-A-btn').className = sub === 'A' ? "px-4 py-2 rounded-lg text-xs font-bold bg-indigo-600 text-white shadow" : "px-4 py-2 rounded-lg text-xs font-bold bg-slate-200 text-slate-700";
-            document.getElementById('sub-role-B-btn').className = sub === 'B' ? "px-4 py-2 rounded-lg text-xs font-bold bg-indigo-600 text-white shadow" : "px-4 py-2 rounded-lg text-xs font-bold bg-slate-200 text-slate-700";
-        }
+  </div>
+</div>
 
-        function switchScreen(id) {
-            ['screen-room', 'screen-pre-survey', 'screen-waiting', 'screen-timer', 'screen-post-survey', 'screen-review', 'screen-result'].forEach(s => {
-                document.getElementById(s).classList.add('hidden');
-            });
-            document.getElementById(id).classList.remove('hidden');
-        }
+<!-- 관리자 모달 -->
+<div id="admin-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+  <div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl space-y-5">
+    <div class="flex justify-between items-center border-b pb-3">
+      <h3 class="font-bold text-slate-900 text-base">🛡️ 관리자 인증 모드</h3>
+      <button onclick="closeAdminModal()" class="text-slate-400 hover:text-slate-600 font-bold">✕</button>
+    </div>
+    <div id="admin-auth-step" class="space-y-3">
+      <p class="text-xs text-slate-500">관리자 비밀번호 4자리를 입력하세요.</p>
+      <input type="password" inputmode="numeric" id="admin-pin-input" maxlength="4" placeholder="PIN 입력" class="w-full px-4 py-3 border rounded-xl text-center text-xl font-bold tracking-widest">
+      <p id="admin-pin-error" class="text-xs font-bold text-red-500 text-center hidden">⚠️ 비밀번호가 일치하지 않습니다.</p>
+      <button onclick="verifyAdminPin()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl text-xs shadow">인증 및 접속</button>
+    </div>
+    <div id="admin-control-step" class="space-y-4 hidden">
+      <div class="bg-amber-50 border border-amber-200 p-3 rounded-xl text-xs text-amber-900 font-medium">관리자 권한으로 로그인되었습니다.</div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">방 비밀번호 (4자리 숫자)</label>
+        <input type="text" inputmode="numeric" id="admin-create-room-id" maxlength="4" value="1234" class="w-full px-3 py-2 border rounded-lg text-center font-bold">
+      </div>
+      <button onclick="createRoomByAdmin()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl text-xs shadow">신규 소개팅 방 생성 & 관리</button>
+      <button onclick="manageExistingRoom()" class="w-full bg-slate-700 hover:bg-slate-800 text-white font-bold py-3 rounded-xl text-xs shadow">기존 방 관리 화면 열기</button>
+      <hr class="border-slate-100">
+      <button onclick="runAdminQuickDemo()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-xs shadow">⚡ 샘플 데이터로 결과 화면 미리보기 (로컬)</button>
+    </div>
+  </div>
+</div>
 
-        // 관리자 인증
-        function openAdminAuth() {
-            document.getElementById('admin-modal').classList.remove('hidden');
-            document.getElementById('admin-auth-step').classList.remove('hidden');
-            document.getElementById('admin-control-step').classList.add('hidden');
-            document.getElementById('admin-pin-error').classList.add('hidden');
-            document.getElementById('admin-pin-input').value = '';
-        }
+<script>
+/* ============================================================
+ * 1) Firebase 설정 — 본인 프로젝트 값으로 교체하세요.
+ *    Firebase 콘솔 > Realtime Database 생성 후 databaseURL 복사
+ *    (규칙은 행사 기간 동안 ".read": true, ".write": true 로 설정)
+ * ============================================================ */
+const FIREBASE_CONFIG = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
+  projectId: "YOUR_PROJECT"
+};
+const ADMIN_PIN = '0109';
+const AUDIENCE_MIN = 5;           // 관중 보정을 적용할 최소 관전자 수
+const TALK_SECONDS = 900;         // 15분
 
-        function closeAdminModal() {
-            document.getElementById('admin-modal').classList.add('hidden');
-        }
+const factors = [
+  "아바타 센스 (지시 수행 능력)",
+  "말투 및 목소리 (전달력과 매력)",
+  "유머 감각 (분위기 리드)",
+  "가치관 및 성향 (생각의 결)",
+  "배려 및 경청 (존중하는 태도)",
+  "대화 흥미 (티키타카 호흡)"
+];
+const PHASES = ['lobby', 'pre', 'timer', 'post', 'result'];
+const PHASE_LABEL = { lobby: '① 로비(입장 대기)', pre: '② 사전 설문', timer: '③ 소개팅 타이머', post: '④ 사후 평가', result: '⑤ 결과 공개' };
+const NEXT_LABEL = { lobby: '▶ 소개팅 시작 (사전 설문 열기)', pre: '⏱ 타이머 시작', timer: '📝 사후 평가 열기', post: '📊 결과 공개', result: '(마지막 단계)' };
 
-        function verifyAdminPin() {
-            const pin = document.getElementById('admin-pin-input').value;
-            if(pin === '0109') {
-                document.getElementById('admin-auth-step').classList.add('hidden');
-                document.getElementById('admin-control-step').classList.remove('hidden');
-            } else {
-                document.getElementById('admin-pin-error').classList.remove('hidden');
-            }
-        }
+const cid = localStorage.getItem('cid') || ('c' + Math.random().toString(36).slice(2, 10));
+localStorage.setItem('cid', cid);
 
-        function createRoomByAdmin() {
-            const roomId = document.getElementById('admin-create-room-id').value;
-            if(roomId.length !== 4) {
-                alert("방 비밀번호는 4자리 숫자로 입력해주세요.");
-                return;
-            }
-            createdRooms[roomId] = true;
-            alert(`성공적으로 방 [${roomId}]이 생성되었습니다.`);
-            document.getElementById('room-pass-input').value = roomId;
-            closeAdminModal();
-        }
+let db = null, serverOffset = 0;
+const state = { role: 'participant', subRole: 'A', roomId: '', isAdmin: false, data: null, ref: null, viewKey: '', timerInt: null, confettiShown: false };
 
-        function enterRoom() {
-            const pass = document.getElementById('room-pass-input').value;
-            const err = document.getElementById('room-error-msg');
+const $ = id => document.getElementById(id);
+const mean = a => a.reduce((x, y) => x + y, 0) / (a.length || 1);
 
-            if(!createdRooms[pass] && pass !== '1234') {
-                err.classList.remove('hidden');
-                return;
-            }
-            err.classList.add('hidden');
-            state.roomId = pass;
+function initFirebase() {
+  if (FIREBASE_CONFIG.apiKey === 'YOUR_API_KEY') {
+    alert('Firebase 설정이 비어 있습니다. 코드 상단의 FIREBASE_CONFIG를 본인 프로젝트 값으로 교체하세요.');
+    return false;
+  }
+  if (!db) {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.database();
+    db.ref('.info/serverTimeOffset').on('value', s => serverOffset = s.val() || 0);
+  }
+  return true;
+}
+const nowSrv = () => Date.now() + serverOffset;
 
-            document.getElementById('room-badge').classList.remove('hidden');
-            document.getElementById('current-room-id').innerText = pass;
+/* ---------- 역할 선택 UI ---------- */
+function selectRoleCard(role) {
+  state.role = role;
+  const on = "p-5 border-2 border-indigo-600 bg-indigo-50/50 rounded-2xl cursor-pointer text-center hover:shadow-md";
+  const off = "p-5 border-2 border-slate-200 bg-white rounded-2xl cursor-pointer text-center hover:shadow-md";
+  $('card-participant').className = role === 'participant' ? on : off;
+  $('card-spectator').className = role === 'spectator' ? on : off;
+  $('participant-sub-selector').classList.toggle('hidden', role !== 'participant');
+}
+function setSubRole(sub) {
+  state.subRole = sub;
+  const on = "px-4 py-2 rounded-lg text-xs font-bold bg-indigo-600 text-white shadow";
+  const off = "px-4 py-2 rounded-lg text-xs font-bold bg-slate-200 text-slate-700";
+  $('sub-role-A-btn').className = sub === 'A' ? on : off;
+  $('sub-role-B-btn').className = sub === 'B' ? on : off;
+}
+const SCREENS = ['screen-room', 'screen-pre-survey', 'screen-waiting', 'screen-timer', 'screen-post-survey', 'screen-result', 'screen-admin'];
+function switchScreen(id) {
+  SCREENS.forEach(s => $(s).classList.add('hidden'));
+  $(id).classList.remove('hidden');
+}
+function showError(msg) { const e = $('room-error-msg'); e.textContent = '⚠️ ' + msg; e.classList.remove('hidden'); }
 
-            if(state.role === 'spectator') {
-                switchScreen('screen-waiting');
-                document.getElementById('waiting-title').innerText = "소개팅 진행 대기 중 (관전자)";
-                setTimeout(() => {
-                    switchScreen('screen-timer');
-                    startTimer();
-                }, 1000);
-            } else {
-                buildPreSurveyInputs();
-                switchScreen('screen-pre-survey');
-            }
-        }
+/* ---------- 관리자 인증 ---------- */
+function openAdminAuth() {
+  $('admin-modal').classList.remove('hidden');
+  $('admin-auth-step').classList.remove('hidden');
+  $('admin-control-step').classList.add('hidden');
+  $('admin-pin-error').classList.add('hidden');
+  $('admin-pin-input').value = '';
+}
+function closeAdminModal() { $('admin-modal').classList.add('hidden'); }
+function verifyAdminPin() {
+  if ($('admin-pin-input').value === ADMIN_PIN) {
+    $('admin-auth-step').classList.add('hidden');
+    $('admin-control-step').classList.remove('hidden');
+  } else $('admin-pin-error').classList.remove('hidden');
+}
 
-        function buildPreSurveyInputs() {
-            const container = document.getElementById('factor-inputs-container');
-            container.innerHTML = '';
-            factors.forEach((f, i) => {
-                container.innerHTML += `
-                    <div>
-                        <div class="flex justify-between text-xs font-semibold text-slate-700 mb-1">
-                            <span>${f}</span>
-                            <span id="val-disp-${i}" class="text-indigo-600 font-bold">0점</span>
-                        </div>
-                        <input type="range" min="0" max="100" value="0" class="w-full accent-indigo-600 slider-thumb weight-slider" data-index="${i}" oninput="updateSum()">
-                    </div>
-                `;
-            });
-            updateSum();
-        }
+/* ---------- 방 생성 / 관리 (관리자) ---------- */
+async function createRoomByAdmin() {
+  if (!initFirebase()) return;
+  const id = $('admin-create-room-id').value.trim();
+  if (!/^\d{4}$/.test(id)) return alert('방 비밀번호는 4자리 숫자로 입력해주세요.');
+  const snap = await db.ref('rooms/' + id).get();
+  if (snap.exists() && !confirm(`방 [${id}]이 이미 있습니다. 초기화하고 새로 만들까요?`)) return;
+  await db.ref('rooms/' + id).set({ phase: 'lobby', createdAt: firebase.database.ServerValue.TIMESTAMP });
+  closeAdminModal();
+  startAdminView(id);
+}
+async function manageExistingRoom() {
+  if (!initFirebase()) return;
+  const id = $('admin-create-room-id').value.trim();
+  const snap = await db.ref('rooms/' + id).get();
+  if (!snap.exists()) return alert('존재하지 않는 방입니다. 먼저 생성하세요.');
+  closeAdminModal();
+  startAdminView(id);
+}
+function startAdminView(id) {
+  state.isAdmin = true; state.role = 'admin';
+  attachRoom(id);
+}
 
-        function updateSum() {
-            const sliders = document.querySelectorAll('.weight-slider');
-            let sum = 0;
-            sliders.forEach((s, i) => {
-                const val = parseInt(s.value) || 0;
-                document.getElementById(`val-disp-${i}`).innerText = val + "점";
-                sum += val;
-            });
-            document.getElementById('current-sum').innerText = sum;
-            
-            const err = document.getElementById('sum-error');
-            const btn = document.getElementById('submit-pre-btn');
-            if(sum !== 100) {
-                err.innerText = "⚠️ 총합이 정확히 100점이 되어야 합니다!";
-                btn.disabled = true;
-            } else {
-                err.innerText = "";
-                btn.disabled = false;
-            }
-        }
+/* ---------- 입장 (참가자/관전자) ---------- */
+async function enterRoom() {
+  if (!initFirebase()) return;
+  const pass = $('room-pass-input').value.trim();
+  if (!/^\d{4}$/.test(pass)) return showError('4자리 숫자를 입력해주세요.');
+  const snap = await db.ref('rooms/' + pass).get();
+  if (!snap.exists()) return showError('존재하지 않는 방 번호입니다. (관리자가 방을 생성해야 합니다)');
+  $('room-error-msg').classList.add('hidden');
 
-        function submitPreSurvey() {
-            const sliders = document.querySelectorAll('.weight-slider');
-            let w = [];
-            sliders.forEach(s => w.push(parseInt(s.value)/100.0));
+  state.isAdmin = false;
+  if (state.role === 'participant') {
+    const res = await db.ref(`rooms/${pass}/slots/${state.subRole}`).transaction(cur => (cur === null || cur === cid) ? cid : undefined);
+    if (!res.committed) return showError(`참가자 ${state.subRole} 자리는 이미 다른 기기가 사용 중입니다.`);
+    db.ref(`rooms/${pass}/slots/${state.subRole}`).onDisconnect().cancel();
+  } else {
+    await db.ref(`rooms/${pass}/spectators/${cid}/joined`).set(true);
+  }
+  attachRoom(pass);
+}
 
-            if(state.subRole === 'A') state.weightsA = w;
-            else state.weightsB = w;
+function attachRoom(id) {
+  if (state.ref) state.ref.off();
+  state.roomId = id; state.viewKey = ''; state.confettiShown = false;
+  $('room-badge').classList.remove('hidden');
+  $('current-room-id').textContent = id;
+  $('role-badge').textContent = state.isAdmin ? '[관리자]' : state.role === 'spectator' ? '[관전자]' : `[참가자 ${state.subRole}]`;
+  state.ref = db.ref('rooms/' + id);
+  state.ref.on('value', snap => {
+    state.data = snap.val();
+    if (!state.data) {
+      alert('방이 삭제되었습니다.');
+      return location.reload();
+    }
+    render();
+  });
+  clearInterval(state.timerInt);
+  state.timerInt = setInterval(tickTimer, 500);
+}
 
-            switchScreen('screen-waiting');
-            setTimeout(() => {
-                switchScreen('screen-timer');
-                startTimer();
-            }, 1200);
-        }
+/* ---------- 화면 렌더링 (서버 phase 기반) ---------- */
+function render() {
+  const d = state.data, phase = d.phase || 'lobby';
+  if (state.isAdmin) { renderAdmin(d, phase); return; }
 
-        function startTimer() {
-            state.timeLeft = 900;
-            clearInterval(state.timerInterval);
-            state.timerInterval = setInterval(() => {
-                state.timeLeft--;
-                let m = Math.floor(state.timeLeft / 60);
-                let s = state.timeLeft % 60;
-                document.getElementById('timer-display').innerText = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-                if(state.timeLeft <= 0) {
-                    clearInterval(state.timerInterval);
-                    goToPostSurvey();
-                }
-            }, 1000);
-        }
+  const me = state.role === 'participant' ? (d.players && d.players[state.subRole]) : (d.spectators && d.spectators[cid]);
+  let screen, key = phase;
 
-        function skipTimer() {
-            clearInterval(state.timerInterval);
-            goToPostSurvey();
-        }
+  if (phase === 'lobby') {
+    screen = 'screen-waiting'; key += '|w';
+    setWaiting('관리자의 시작을 기다리는 중', '관리자가 "소개팅 시작"을 누르면 자동으로 다음 화면으로 이동합니다.');
+  } else if (phase === 'pre') {
+    if (state.role === 'spectator') {
+      screen = 'screen-waiting'; key += '|w';
+      setWaiting('소개팅 준비 중 (관전자)', '참가자들이 사전 설문을 작성하고 있습니다. 관리자가 타이머를 시작할 때까지 기다려주세요.');
+    } else if (me && me.pre) {
+      screen = 'screen-waiting'; key += '|w';
+      setWaiting('설문 제출 완료', '상대방과 관리자를 기다리는 중입니다. 관리자가 시작하면 자동으로 넘어갑니다.');
+    } else { screen = 'screen-pre-survey'; key += '|form'; }
+  } else if (phase === 'timer') {
+    screen = 'screen-timer';
+  } else if (phase === 'post') {
+    if (me && me.post || (state.role === 'spectator' && me && me.scores)) {
+      screen = 'screen-waiting'; key += '|w';
+      setWaiting('평가 제출 완료 ✅', '관리자가 결과를 공개할 때까지 기다려주세요.');
+    } else { screen = 'screen-post-survey'; key += '|form'; }
+  } else {
+    screen = 'screen-result';
+  }
 
-        function goToPostSurvey() {
-            buildPostSurveyInputs();
-            switchScreen('screen-post-survey');
-        }
+  if (key !== state.viewKey) {
+    state.viewKey = key;
+    if (screen === 'screen-pre-survey') buildPreSurveyInputs();
+    if (screen === 'screen-post-survey') buildPostSurveyInputs();
+    switchScreen(screen);
+    if (screen === 'screen-timer') tickTimer();
+  }
+  if (screen === 'screen-result') showResult(computeResult(d));
+}
+function setWaiting(t, desc) { $('waiting-title').textContent = t; $('waiting-desc').textContent = desc; }
 
-        function buildPostSurveyInputs() {
-            const container = document.getElementById('post-survey-content');
-            let html = '';
+/* ---------- 관리자 화면 ---------- */
+function renderAdmin(d, phase) {
+  if (state.viewKey !== 'admin') { state.viewKey = 'admin'; switchScreen('screen-admin'); }
+  $('adm-phase').textContent = PHASE_LABEL[phase];
+  const p = d.players || {}, specs = d.spectators || {};
+  const stat = k => {
+    const joined = d.slots && d.slots[k];
+    const pre = p[k] && p[k].pre ? '설문✅' : '설문⬜';
+    const post = p[k] && p[k].post ? '평가✅' : '평가⬜';
+    return joined ? `입장됨 · ${pre} · ${post}` : '미입장';
+  };
+  $('adm-A').textContent = stat('A');
+  $('adm-B').textContent = stat('B');
+  const ids = Object.keys(specs);
+  $('adm-spec').textContent = `${ids.length}명 입장 · 평가 제출 ${ids.filter(i => specs[i].scores).length}명`;
+  const btn = $('adm-next-btn');
+  btn.textContent = NEXT_LABEL[phase];
+  btn.disabled = phase === 'result';
+  btn.classList.toggle('opacity-50', phase === 'result');
+  if (phase === 'result') {
+    // 관리자도 결과를 미리 보고 싶을 때를 위해 아래에 결과 요약 표시
+    $('adm-phase').textContent += ` → ${computeResult(d).finalP.toFixed(1)}%`;
+  }
+}
+function adminNext() {
+  const d = state.data, phase = d.phase || 'lobby', i = PHASES.indexOf(phase);
+  if (i >= PHASES.length - 1) return;
+  const next = PHASES[i + 1], upd = { phase: next };
+  const p = d.players || {};
+  if (phase === 'pre' && !(p.A && p.A.pre && p.B && p.B.pre)) {
+    if (!confirm('아직 설문을 제출하지 않은 참가자가 있습니다. 그래도 타이머를 시작할까요? (미제출자는 기본값 사용)')) return;
+  }
+  if (phase === 'post' && !(p.A && p.A.post && p.B && p.B.post)) {
+    if (!confirm('아직 평가를 제출하지 않은 참가자가 있습니다. 그래도 결과를 공개할까요? (미제출자는 기본값 사용)')) return;
+  }
+  if (next === 'timer') upd.timerEnd = nowSrv() + TALK_SECONDS * 1000;
+  state.ref.update(upd);
+}
+function adminPrev() {
+  const phase = state.data.phase || 'lobby', i = PHASES.indexOf(phase);
+  if (i > 0) state.ref.update({ phase: PHASES[i - 1] });
+}
+function adminReset() {
+  if (!confirm('모든 설문/평가 데이터를 지우고 로비로 되돌릴까요?')) return;
+  state.ref.update({ phase: 'lobby', players: null, spectators: null, slots: null, timerEnd: null });
+}
+function adminDelete() {
+  if (!confirm('방을 삭제하면 모든 접속자가 쫓겨납니다. 삭제할까요?')) return;
+  state.ref.remove();
+}
+function adminLeave() { location.reload(); }
 
-            if(state.role === 'spectator') {
-                html += `<div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 mb-3 font-semibold">👀 관전자 모드: 참가자 A와 참가자 B 모두를 평가합니다.</div>`;
-                ['A', 'B'].forEach(p => {
-                    html += `<h4 class="font-bold text-slate-900 text-xs mt-3 mb-2">⭐ 참가자 ${p} 평가 (1~10점)</h4>`;
-                    factors.forEach((f, i) => {
-                        html += `
-                            <div class="mb-2 flex justify-between items-center text-xs">
-                                <span class="text-slate-600">${f}</span>
-                                <input type="number" min="1" max="10" value="8" class="w-16 px-2 py-1 border rounded-lg text-center font-bold font-mono">
-                            </div>
-                        `;
-                    });
-                });
-            } else {
-                html += `
-                    <div class="bg-indigo-50 p-4 rounded-xl mb-4">
-                        <h4 class="font-bold text-indigo-900 text-xs mb-1">🧠 대본 기억력 퀴즈 (3문항)</h4>
-                        <p class="text-[11px] text-indigo-600 mb-2">소개팅 대화 중 맞힌 정답 개수 선택</p>
-                        <select id="quiz-input" class="w-full px-3 py-2 border rounded-lg bg-white font-bold text-xs">
-                            <option value="3">3개 정답 (100% 명확히 기억)</option>
-                            <option value="2">2개 정답 (대부분 기억)</option>
-                            <option value="1">1개 정답 (일부 기억)</option>
-                            <option value="0">0개 (기억 안 남)</option>
-                        </select>
-                    </div>
-                    <h4 class="font-bold text-slate-900 text-xs mb-2">⭐ 상대방 요소별 평가 (1~10점)</h4>
-                `;
-                factors.forEach((f, i) => {
-                    html += `
-                        <div class="mb-2 flex justify-between items-center text-xs">
-                            <span class="text-slate-600">${f}</span>
-                            <input type="number" min="1" max="10" value="8" class="w-16 px-2 py-1 border rounded-lg text-center font-bold font-mono post-eval-score" data-index="${i}">
-                        </div>
-                    `;
-                });
-            }
-            container.innerHTML = html;
-        }
+/* ---------- 사전 설문 ---------- */
+function buildPreSurveyInputs() {
+  const c = $('factor-inputs-container');
+  c.innerHTML = factors.map((f, i) => `
+    <div>
+      <div class="flex justify-between text-xs font-semibold text-slate-700 mb-1">
+        <span>${f}</span><span id="val-disp-${i}" class="text-indigo-600 font-bold">0점</span>
+      </div>
+      <input type="range" min="0" max="100" value="0" class="w-full accent-indigo-600 slider-thumb weight-slider" data-index="${i}" oninput="updateSum()">
+    </div>`).join('');
+  updateSum();
+}
+function updateSum() {
+  let sum = 0;
+  document.querySelectorAll('.weight-slider').forEach((s, i) => {
+    const v = parseInt(s.value) || 0;
+    $(`val-disp-${i}`).textContent = v + '점';
+    sum += v;
+  });
+  $('current-sum').textContent = sum;
+  $('sum-error').textContent = sum !== 100 ? '⚠️ 총합이 정확히 100점이 되어야 합니다!' : '';
+  $('submit-pre-btn').disabled = sum !== 100;
+}
+function submitPreSurvey() {
+  const w = [...document.querySelectorAll('.weight-slider')].map(s => parseInt(s.value) || 0);
+  if (w.reduce((a, b) => a + b, 0) !== 100) return;
+  state.ref.child(`players/${state.subRole}/pre`).set(w);
+}
 
-        function submitPostSurvey() {
-            if(state.role === 'participant') {
-                const quiz = parseInt(document.getElementById('quiz-input').value) || 0;
-                const scoreInputs = document.querySelectorAll('.post-eval-score');
-                let sc = [];
-                scoreInputs.forEach(inp => sc.push(parseFloat(inp.value)||5));
+/* ---------- 타이머 ---------- */
+function tickTimer() {
+  const d = state.data;
+  if (!d || d.phase !== 'timer' || !d.timerEnd) return;
+  const left = Math.max(0, Math.round((d.timerEnd - nowSrv()) / 1000));
+  $('timer-display').textContent = `${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}`;
+}
 
-                if(state.subRole === 'A') {
-                    state.quizA = quiz;
-                    state.scoresAtoB = sc;
-                } else {
-                    state.quizB = quiz;
-                    state.scoresBtoA = sc;
-                }
-            }
-            switchScreen('screen-review');
-        }
+/* ---------- 사후 평가 ---------- */
+function buildPostSurveyInputs() {
+  const c = $('post-survey-content');
+  let html = '';
+  if (state.role === 'spectator') {
+    html += `<div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 mb-3 font-semibold">👀 관전자 모드: 참가자 A와 B 모두를 평가합니다.</div>`;
+    ['A', 'B'].forEach(p => {
+      html += `<h4 class="font-bold text-slate-900 text-xs mt-3 mb-2">⭐ 참가자 ${p} 평가 (1~10점)</h4>`;
+      factors.forEach((f, i) => {
+        html += `<div class="mb-2 flex justify-between items-center text-xs"><span class="text-slate-600">${f}</span>
+          <input type="number" min="1" max="10" value="8" class="w-16 px-2 py-1 border rounded-lg text-center font-bold font-mono aud-score" data-p="${p}" data-index="${i}"></div>`;
+      });
+    });
+  } else {
+    html += `<div class="bg-indigo-50 p-4 rounded-xl mb-4">
+      <h4 class="font-bold text-indigo-900 text-xs mb-1">🧠 대본 기억력 퀴즈 (3문항)</h4>
+      <p class="text-[11px] text-indigo-600 mb-2">소개팅 대화 중 맞힌 정답 개수 선택</p>
+      <select id="quiz-input" class="w-full px-3 py-2 border rounded-lg bg-white font-bold text-xs">
+        <option value="3">3개 정답 (100% 명확히 기억)</option><option value="2">2개 정답 (대부분 기억)</option>
+        <option value="1">1개 정답 (일부 기억)</option><option value="0">0개 (기억 안 남)</option></select></div>
+      <h4 class="font-bold text-slate-900 text-xs mb-2">⭐ 상대방 요소별 평가 (1~10점)</h4>`;
+    factors.forEach((f, i) => {
+      html += `<div class="mb-2 flex justify-between items-center text-xs"><span class="text-slate-600">${f}</span>
+        <input type="number" min="1" max="10" value="8" class="w-16 px-2 py-1 border rounded-lg text-center font-bold font-mono post-eval-score" data-index="${i}"></div>`;
+    });
+  }
+  c.innerHTML = html;
+}
+const clamp = v => Math.min(10, Math.max(1, isNaN(v) ? 5 : v));
+function submitPostSurvey() {
+  if (state.role === 'spectator') {
+    const sc = { A: [], B: [] };
+    document.querySelectorAll('.aud-score').forEach(inp => { sc[inp.dataset.p][+inp.dataset.index] = clamp(parseFloat(inp.value)); });
+    state.ref.child(`spectators/${cid}/scores`).set(sc);
+  } else {
+    const scores = [...document.querySelectorAll('.post-eval-score')].map(i => clamp(parseFloat(i.value)));
+    const quiz = parseInt($('quiz-input').value) || 0;
+    state.ref.child(`players/${state.subRole}/post`).set({ scores, quiz });
+  }
+}
 
-        function toggleReady() {
-            document.getElementById('ready-btn').innerText = "✅ 준비 완료됨!";
-            document.getElementById('ready-btn').className = "w-full bg-emerald-600 text-white font-bold py-4 rounded-xl shadow-lg";
-            document.getElementById('ready-status').innerText = "양측 준비 완료! 최종 매칭 수식 계산 중...";
+/* ---------- 수학 모델 ----------
+ * c      = (1-λ)·참가자 점수 + λ·관전자 평균 점수      (λ=0.25, 관전자 5명 이상일 때)
+ * S_mem  = 5 + 5·(퀴즈정답/3)                              (10점 만점 척도)
+ * H      = 0.9·Σ(가중치·c) + 0.1·S_mem                     (10점 만점)
+ * M      = √(H_AB · H_BA)
+ * P      = 100 / (1 + e^(-0.9(M-6)))
+ */
+function computeResult(d, override) {
+  const P = override || d.players || {};
+  const specs = override ? {} : (d.spectators || {});
+  const defW = [1 / 6, 1 / 6, 1 / 6, 1 / 6, 1 / 6, 1 / 6];
+  const get = (k) => {
+    const x = P[k] || {};
+    return {
+      w: x.pre ? x.pre.map(v => v / 100) : defW,
+      sc: x.post ? x.post.scores : Array(6).fill(7),
+      quiz: x.post ? x.post.quiz : 1.5
+    };
+  };
+  const A = get('A'), B = get('B');
+  const aud = Object.values(specs).filter(s => s.scores && s.scores.A && s.scores.B);
+  const count = aud.length;
+  const lambda = count >= AUDIENCE_MIN ? 0.25 : 0;
+  const audAvg = k => factors.map((_, i) => mean(aud.map(s => s.scores[k][i])));
+  const aA = count ? audAvg('A') : [], aB = count ? audAvg('B') : [];
 
-            setTimeout(() => {
-                calculateResults();
-            }, 1000);
-        }
+  const cAB = A.sc.map((s, i) => (1 - lambda) * s + lambda * (count ? aB[i] : s));  // A가 B에게 준 점수
+  const cBA = B.sc.map((s, i) => (1 - lambda) * s + lambda * (count ? aA[i] : s));
+  const memA = 5 + 5 * (A.quiz / 3), memB = 5 + 5 * (B.quiz / 3);
+  let sA = 0, sB = 0;
+  for (let i = 0; i < 6; i++) { sA += A.w[i] * cAB[i]; sB += B.w[i] * cBA[i]; }
+  const H_AB = 0.9 * sA + 0.1 * memA, H_BA = 0.9 * sB + 0.1 * memB;
+  const M = Math.sqrt(H_AB * H_BA);
+  const finalP = 100 / (1 + Math.exp(-0.9 * (M - 6)));
+  return { H_AB, H_BA, M, lambda, count, memA, memB, finalP };
+}
+function showResult(r) {
+  let comment;
+  if (r.finalP >= 80) comment = "🔥 환상의 케미 (천생연분 조합!)";
+  else if (r.finalP >= 60) comment = "✨ 잘 통하는 조합 (티키타카 최고)";
+  else if (r.finalP >= 40) comment = "💬 알아가는 재미가 있는 조합";
+  else comment = "⚡ 의외의 반전이 기대되는 조합";
+  $('final-probability').textContent = r.finalP.toFixed(1) + '%';
+  $('final-comment').textContent = comment;
+  $('result-breakdown').innerHTML = `
+    <div>• H(A→B) 방향별 호감도: <b class="text-white">${r.H_AB.toFixed(2)}점</b> (기억점수 ${r.memA.toFixed(1)})</div>
+    <div>• H(B→A) 방향별 호감도: <b class="text-white">${r.H_BA.toFixed(2)}점</b> (기억점수 ${r.memB.toFixed(1)})</div>
+    <div>• 결합 기하평균 (M): <b class="text-white">${r.M.toFixed(2)}점</b></div>
+    <div>• 관중 보정 비율 (λ): <b class="text-white">${r.lambda}</b> (평가 제출 관전자 ${r.count}명)</div>`;
+  switchScreen('screen-result');
+  if (!state.confettiShown && typeof confetti === 'function') {
+    state.confettiShown = true;
+    confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+  }
+}
 
-        function calculateResults() {
-            const lambda = state.audienceCount >= 5 ? 0.25 : 0.0;
-
-            let c_A_to_B = state.scoresAtoB.map((s, i) => (1 - lambda) * s + lambda * state.audienceScoresB[i]);
-            let c_B_to_A = state.scoresBtoA.map((s, i) => (1 - lambda) * s + lambda * state.audienceScoresA[i]);
-
-            let s_mem_A = 5.0 + 5.0 * (state.quizA / 3.0);
-            let s_mem_B = 5.0 + 5.0 * (state.quizB / 3.0);
-
-            let sumA = 0, sumB = 0;
-            for(let i=0; i<6; i++) {
-                sumA += state.weightsA[i] * c_A_to_B[i];
-                sumB += state.weightsB[i] * c_B_to_A[i];
-            }
-
-            let H_AB = 0.9 * sumA + 0.1 * s_mem_A;
-            let H_BA = 0.9 * sumB + 0.1 * s_mem_B;
-
-            let M = Math.sqrt(H_AB * H_BA);
-
-            let P_ratio = 1.0 / (1.0 + Math.exp(-0.45 * (M - 5.0)));
-            let finalP = P_ratio * 100.0;
-
-            let comment = "";
-            if (finalP >= 80.0) comment = "🔥 환상의 케미 (천생연분 조합!)";
-            else if (finalP >= 60.0) comment = "✨ 잘 통하는 조합 (티키타카 최고)";
-            else if (finalP >= 40.0) comment = "💬 알아가는 재미가 있는 조합";
-            else comment = "⚡ 의외의 반전이 기대되는 조합";
-
-            document.getElementById('final-probability').innerText = finalP.toFixed(1) + "%";
-            document.getElementById('final-comment').innerText = comment;
-
-            document.getElementById('result-breakdown').innerHTML = `
-                <div>• H(A→B) 방향별 호감도: <b class="text-white">${H_AB.toFixed(2)}점</b> (기억점수 ${s_mem_A.toFixed(1)})</div>
-                <div>• H(B→A) 방향별 호감도: <b class="text-white">${H_BA.toFixed(2)}점</b> (기억점수 ${s_mem_B.toFixed(1)})</div>
-                <div>• 결합 기하평균 (M): <b class="text-white">${M.toFixed(2)}점</b></div>
-                <div>• 관중 보정 비율 (λ): <b class="text-white">${lambda}</b> (관전자 ${state.audienceCount}명 적용)</div>
-            `;
-
-            switchScreen('screen-result');
-
-            if(typeof confetti === 'function') {
-                confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-            }
-        }
-
-        // 관리자 원클릭 자동 시연 기능
-        function runAdminQuickDemo() {
-            closeAdminModal();
-            state.roomId = "1234";
-            document.getElementById('room-badge').classList.remove('hidden');
-            document.getElementById('current-room-id').innerText = "1234";
-            calculateResults();
-        }
-    </script>
+/* ---------- 관리자 로컬 시연 ---------- */
+function runAdminQuickDemo() {
+  closeAdminModal();
+  state.confettiShown = false;
+  const demo = {
+    A: { pre: [20, 20, 15, 15, 15, 15], post: { scores: [9, 8, 8, 9, 7, 8], quiz: 3 } },
+    B: { pre: [15, 25, 20, 10, 15, 15], post: { scores: [8, 9, 7, 8, 9, 8], quiz: 3 } }
+  };
+  $('room-badge').classList.remove('hidden');
+  $('current-room-id').textContent = 'DEMO';
+  showResult(computeResult({}, demo));
+}
+</script>
 </body>
 </html>
